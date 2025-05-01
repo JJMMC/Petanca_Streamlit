@@ -86,73 +86,58 @@ def estadisticas():
     # Validar que las columnas críticas no tengan valores nulos
     partidas_df = partidas_df.dropna(subset=["Fecha", "Ganador", "Jugador1_Equipo1", "Jugador2_Equipo1", "Jugador1_Equipo2", "Jugador2_Equipo2"])
     
-    # Convertir la columna de fechas a formato datetime
-    partidas_df["Fecha"] = pd.to_datetime(partidas_df["Fecha"], errors="coerce")
-    
-    # Validar que haya fechas válidas
-    if partidas_df["Fecha"].isnull().all():
-        st.warning("No hay fechas válidas en las partidas registradas.")
-        return
-    
     # Mostrar Partidas:
     st.subheader("Partidas Registradas")
     st.dataframe(partidas_df)
+    
+    # Filtro de fechas
+        # Convertir las fechas a objetos datetime
+    fechas = pd.to_datetime(partidas_df["Fecha"])
+    print(fechas)
+    print(type(fechas))
+    fecha_min, fecha_max = fechas.min(), fechas.max()
+            
+        # Asegurarse de que fecha_min y fecha_max sean del tipo datetime
+    if isinstance(fecha_min, pd.Timestamp):
+        fecha_min = fecha_min.to_pydatetime()
+        print(fecha_min, 'ESTO ES FECHA MIN')
+        print(type(fecha_min))
+    if isinstance(fecha_max, pd.Timestamp):
+        fecha_max = fecha_max.to_pydatetime()
+        print(fecha_max, 'ESTO ES FECHA MAX')
+        print(type(fecha_max))
+                
+        # Crear el slider con las fechas convertidas
+    fecha_rango = st.slider("Seleccionar rango de fechas", fecha_min, fecha_max, (fecha_min, fecha_max))
 
-    # # Filtro de rango de fechas
-    # fecha_min, fecha_max = partidas_df["Fecha"].min(), partidas_df["Fecha"].max()
-    # fecha_rango = st.slider("Seleccionar rango de fechas", fecha_min, fecha_max, (fecha_min, fecha_max))
-    # partidas_filtradas = partidas_df[(partidas_df["Fecha"] >= fecha_rango[0]) & (partidas_df["Fecha"] <= fecha_rango[1])]
+    # Estadísticas de jugadores
+    st.subheader("🏅 Estadísticas de Jugadores")
+    jugadores_victorias = partidas_df["Ganador"].value_counts()
+    mejor_jugador = jugadores_victorias.idxmax()
+    victorias_mejor_jugador = jugadores_victorias.max()
 
-    # if partidas_filtradas.empty:
-    #     st.warning("No hay partidas en el rango de fechas seleccionado.")
-    #     return
+    st.write(f"**Mejor jugador:** {mejor_jugador} con {victorias_mejor_jugador} victorias.")
 
-    # # Mostrar partidas filtradas
-    # st.subheader("📋 Partidas Registradas")
-    # st.dataframe(partidas_filtradas)
+    # Estadísticas de equipos
+    st.subheader("🤝 Estadísticas de Equipos")
+    partidas_df["Equipo1"] = partidas_df["Jugador1_Equipo1"] + " y " + partidas_df["Jugador2_Equipo1"]
+    partidas_df["Equipo2"] = partidas_df["Jugador1_Equipo2"] + " y " + partidas_df["Jugador2_Equipo2"]
 
-    # # Conteo de victorias por equipo
-    # st.subheader("🏆 Victorias por Equipo")
-    # victorias = partidas_filtradas["Ganador"].value_counts().reset_index()
-    # victorias.columns = ["Equipo", "Victorias"]
+    equipos_victorias = partidas_df["Ganador"].value_counts()
+    mejor_equipo = equipos_victorias.idxmax()
+    victorias_mejor_equipo = equipos_victorias.max()
 
-    # chart_victorias = alt.Chart(victorias).mark_bar().encode(
-    #     x=alt.X("Equipo", sort="-y"),
-    #     y="Victorias",
-    #     color="Equipo"
-    # ).properties(
-    #     title="Victorias por Equipo"
-    # )
-    # st.altair_chart(chart_victorias, use_container_width=True)
+    st.write(f"**Mejor combinación de equipo:** {mejor_equipo} con {victorias_mejor_equipo} victorias.")
 
-    # # Estadísticas individuales por jugador
-    # st.subheader("🎯 Estadísticas por Jugador")
-    # jugadores_estadisticas = {}
+    # Resumen general
+    st.subheader("📊 Resumen General")
+    total_partidas = len(partidas_df)
+    total_puntos_equipo1 = partidas_df["Puntos_Equipo1"].sum()
+    total_puntos_equipo2 = partidas_df["Puntos_Equipo2"].sum()
 
-    # for _, partida in partidas_filtradas.iterrows():
-    #     for jugador in [partida["Jugador1_Equipo1"], partida["Jugador2_Equipo1"], partida["Jugador1_Equipo2"], partida["Jugador2_Equipo2"]]:
-    #         if jugador not in jugadores_estadisticas:
-    #             jugadores_estadisticas[jugador] = {"Victorias": 0, "Partidas_Jugadas": 0}
-    #         jugadores_estadisticas[jugador]["Partidas_Jugadas"] += 1
+    st.write(f"- Total de partidas jugadas: {total_partidas}")
+    st.write(f"- Total de puntos anotados por Equipo 1: {total_puntos_equipo1}")
+    st.write(f"- Total de puntos anotados por Equipo 2: {total_puntos_equipo2}")    
+    
+    
 
-    #     if partida["Ganador"] == "Equipo 1":
-    #         jugadores_estadisticas[partida["Jugador1_Equipo1"]]["Victorias"] += 1
-    #         jugadores_estadisticas[partida["Jugador2_Equipo1"]]["Victorias"] += 1
-    #     elif partida["Ganador"] == "Equipo 2":
-    #         jugadores_estadisticas[partida["Jugador1_Equipo2"]]["Victorias"] += 1
-    #         jugadores_estadisticas[partida["Jugador2_Equipo2"]]["Victorias"] += 1
-
-    # estadisticas_df = pd.DataFrame.from_dict(jugadores_estadisticas, orient="index").reset_index()
-    # estadisticas_df.columns = ["Jugador", "Victorias", "Partidas_Jugadas"]
-    # estadisticas_df["Porcentaje_Victorias"] = (estadisticas_df["Victorias"] / estadisticas_df["Partidas_Jugadas"] * 100).round(2)
-
-    # st.dataframe(estadisticas_df.sort_values(by="Victorias", ascending=False))
-
-    # chart_jugadores = alt.Chart(estadisticas_df).mark_bar().encode(
-    #     x=alt.X("Jugador", sort="-y"),
-    #     y="Victorias",
-    #     color="Jugador"
-    # ).properties(
-    #     title="Victorias por Jugador"
-    # )
-    # st.altair_chart(chart_jugadores, use_container_width=True)

@@ -11,7 +11,7 @@ def main():
     # Inicializar BD
     #create_tables()
 
-    st.set_page_config(page_title="Petanca Manager", page_icon='resources/boule.png' ,layout="wide")
+    st.set_page_config(page_title="Petanca Manager", page_icon='resources/boule.png' ,layout="centered")
     st.title("Widget Partidas de petanca")
     
 
