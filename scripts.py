@@ -1,13 +1,12 @@
 import streamlit as st
 import datetime
 import pandas as pd
-import datetime
 import altair as alt
-import sqlite3
-from db_utils import create_tables, add_player, add_equipo, add_partida, get_jugadores, get_equipos, get_partidas
+from db_utils import create_tables, add_player, add_equipo, add_partida, add_equipo_jugador
+from db_utils import get_jugadores, get_equipos, get_partidas, get_equipo_jugador
 
 # Conexiones
-jugadores = get_jugadores()
+#jugadores = get_jugadores()
 #equipos = get_equipos()
 photo_path = 'resources/users_photo'
 
@@ -28,9 +27,10 @@ def pag_add_players():
         if st.form_submit_button("Guardar jugador"):
             add_player(nombre, apellido, photo_path, creation_date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             st.success(f"Jugador '{nombre}' agregado correctamente.")
-    st.rerun()
+        st.rerun()
 
 def save_match():
+    jugadores = get_jugadores()
     st.header("⚔️ Registrar nueva partida")
 
     if len(jugadores) < 4:
@@ -68,76 +68,182 @@ def save_match():
             else:
                 st.success(f'Equipo 2 - {jugador3} y {jugador4} GANARON')
                 ganador = 'Equipo 2'
-            add_partida(fecha, jugador1, jugador2, jugador3, jugador4, puntos1, puntos2, ganador)
-            st.success("Partida registrada exitosamente.")
+            
+            # Creamos la partida
+            add_partida(fecha, puntos1, puntos2, ganador)
+            partida_id = get_partidas()
+            partida_id = partida_id[-1]
+            
+            #Creamos el equipo
+            add_equipo(partida_id[0], 1)
+            add_equipo(partida_id[0], 2)
+            equipo_id = [equipo_id for equipo_id, _ , _ in get_equipos()]
+
+            # Generamos las entradas en la tabla relacional equipos-jugadores
+            # Añadimos el Jugador 1 a la tabla equipo jugador
+            if jugador1 in jugadores_dict:
+                jugador_id = jugadores_dict[jugador1]
+                add_equipo_jugador(equipo_id[-2], jugador_id)
+            
+            # Añadimos el Jugador 2 a la tabla equipo jugador
+            if jugador2 in jugadores_dict:
+                jugador_id = jugadores_dict[jugador2]
+                add_equipo_jugador(equipo_id[-2], jugador_id)
+            
+            # Añadimos el Jugador 3 a la tabla equipo jugador
+            if jugador3 in jugadores_dict:
+                jugador_id = jugadores_dict[jugador3]
+                add_equipo_jugador(equipo_id[-1], jugador_id)
+            
+            # Añadimos el Jugador 4 a la tabla equipo jugador
+            if jugador4 in jugadores_dict:
+                jugador_id = jugadores_dict[jugador4]
+                add_equipo_jugador(equipo_id[-1], jugador_id)
 
             
-def estadisticas():
-    st.header("📈 Estadísticas de Partidas")
+            # add_equipo(partida_id, equipo_id)
+            st.success("Partida registrada exitosamente.")
 
+def estadisticas_v():
+    st.header("📊 Estadísticas de Partidas de Petanca")
+
+    # Obtener las partidas desde la base de datos
     partidas = get_partidas()
     if not partidas:
         st.info("No hay partidas registradas.")
         return
 
     # Crear DataFrame con las partidas
-    partidas_df = pd.DataFrame(partidas, columns=["ID", "Fecha", "Jugador1_Equipo1", "Jugador2_Equipo1", "Jugador1_Equipo2", "Jugador2_Equipo2", "Puntos_Equipo1", "Puntos_Equipo2", "Ganador"])
-    
-    # Validar que las columnas críticas no tengan valores nulos
-    partidas_df = partidas_df.dropna(subset=["Fecha", "Ganador", "Jugador1_Equipo1", "Jugador2_Equipo1", "Jugador1_Equipo2", "Jugador2_Equipo2"])
-    
-    # Mostrar Partidas:
-    st.subheader("Partidas Registradas")
+    partidas_df = pd.DataFrame(partidas, columns=["ID", "Fecha", "Duración", "Puntos_Equipo1", "Puntos_Equipo2", "Ganador"])
+    partidas_df["Fecha"] = pd.to_datetime(partidas_df["Fecha"])
+
+    # Obtener datos adicionales de otras tablas
+    jugadores = get_jugadores()
+    equipos = get_equipos()
+    equipos_jugadores = pd.DataFrame(get_equipo_jugador(), columns=["Equipo_ID", "Jugador_ID"])
+
+    jugadores_df = pd.DataFrame(jugadores, columns=["ID", "Nombre"])
+    equipos_df = pd.DataFrame(equipos, columns=["ID", "Partida_ID", "Equipo_Numero"])
+
+    # 1. Jugadores más frecuentes en partidas
+    jugadores_frecuencia = equipos_jugadores["Jugador_ID"].value_counts().reset_index()
+    jugadores_frecuencia.columns = ["Jugador_ID", "Participaciones"]
+    jugadores_frecuencia = jugadores_frecuencia.merge(jugadores_df, left_on="Jugador_ID", right_on="ID")
+    st.subheader("👤 Jugadores más Frecuentes")
+    st.dataframe(jugadores_frecuencia[["Nombre", "Participaciones"]])
+
+    # # 2. Promedio de puntos por jugador
+    # equipos_puntos = equipos_df.merge(partidas_df, left_on="Partida_ID", right_on="ID")
+    # equipos_puntos["Puntos"] = equipos_puntos.apply(
+    #     lambda row: row["Puntos_Equipo1"] if row["Equipo_Numero"] == 1 else row["Puntos_Equipo2"], axis=1
+    # )
+    # puntos_por_jugador = equipos_jugadores.merge(equipos_puntos, left_on="Equipo_ID", right_on="ID")
+    # puntos_por_jugador = puntos_por_jugador.groupby("Jugador_ID")["Puntos"].mean().reset_index()
+    # puntos_por_jugador = puntos_por_jugador.merge(jugadores_df, left_on="Jugador_ID", right_on="ID")
+    # st.subheader("🎯 Promedio de Puntos por Jugador")
+    # st.dataframe(puntos_por_jugador[["Nombre", "Puntos"]])
+
+    # # 3. Duración promedio de partidas por equipo
+    # duracion_por_equipo = equipos_df.merge(partidas_df, left_on="Partida_ID", right_on="ID")
+    # duracion_promedio = duracion_por_equipo.groupby("Equipo_Numero")["Duración"].mean().reset_index()
+    # duracion_promedio.columns = ["Equipo", "Duración Promedio (segundos)"]
+    # st.subheader("⏱️ Duración Promedio de Partidas por Equipo")
+    # st.dataframe(duracion_promedio)
+
+    # 4. Rendimiento de jugadores por equipo
+    victorias_por_equipo = partidas_df.groupby("Ganador").size().reset_index(name="Victorias")
+    victorias_por_equipo.columns = ["Equipo", "Victorias"]
+    rendimiento_jugadores = equipos_jugadores.merge(equipos_df, left_on="Equipo_ID", right_on="ID")
+    rendimiento_jugadores = rendimiento_jugadores.merge(partidas_df, left_on="Partida_ID", right_on="ID")
+    rendimiento_jugadores = rendimiento_jugadores[rendimiento_jugadores["Ganador"] == rendimiento_jugadores["Equipo_Numero"]]
+    rendimiento_jugadores = rendimiento_jugadores.groupby("Jugador_ID").size().reset_index(name="Victorias")
+    rendimiento_jugadores = rendimiento_jugadores.merge(jugadores_df, left_on="Jugador_ID", right_on="ID")
+    st.subheader("🏆 Rendimiento de Jugadores por Equipo")
+    st.dataframe(rendimiento_jugadores[["Nombre", "Victorias"]])
+
+    # 5. Historial de equipos
+    historial_equipos = equipos_jugadores.merge(jugadores_df, left_on="Jugador_ID", right_on="ID")
+    historial_equipos = historial_equipos.merge(equipos_df, left_on="Equipo_ID", right_on="ID")
+    historial_equipos = historial_equipos.groupby(["Equipo_ID", "Equipo_Numero"])["Nombre"].apply(list).reset_index()
+    st.subheader("📋 Historial de Equipos")
+    st.dataframe(historial_equipos)
+
+
+def estadisticas():
+    st.header("📊 Estadísticas de Partidas de Petanca")
+
+    # Obtener las partidas desde la base de datos
+    partidas = get_partidas()
+    if not partidas:
+        st.info("No hay partidas registradas.")
+        return
+
+    # Crear DataFrame con las partidas
+    partidas_df = pd.DataFrame(partidas, columns=["ID", "Fecha", "Duración", "Puntos_Equipo1", "Puntos_Equipo2", "Ganador"])
+    partidas_df["Fecha"] = pd.to_datetime(partidas_df["Fecha"])
+
+    # Mostrar tabla de partidas
+    st.subheader("📋 Partidas Registradas")
     st.dataframe(partidas_df)
-    
-    # Filtro de fechas
-        # Convertir las fechas a objetos datetime
-    fechas = pd.to_datetime(partidas_df["Fecha"])
-    print(fechas)
-    print(type(fechas))
-    fecha_min, fecha_max = fechas.min(), fechas.max()
-            
-        # Asegurarse de que fecha_min y fecha_max sean del tipo datetime
-    if isinstance(fecha_min, pd.Timestamp):
-        fecha_min = fecha_min.to_pydatetime()
-        print(fecha_min, 'ESTO ES FECHA MIN')
-        print(type(fecha_min))
-    if isinstance(fecha_max, pd.Timestamp):
-        fecha_max = fecha_max.to_pydatetime()
-        print(fecha_max, 'ESTO ES FECHA MAX')
-        print(type(fecha_max))
-                
-        # Crear el slider con las fechas convertidas
-    fecha_rango = st.slider("Seleccionar rango de fechas", fecha_min, fecha_max, (fecha_min, fecha_max))
 
-    # Estadísticas de jugadores
-    st.subheader("🏅 Estadísticas de Jugadores")
-    jugadores_victorias = partidas_df["Ganador"].value_counts()
-    mejor_jugador = jugadores_victorias.idxmax()
-    victorias_mejor_jugador = jugadores_victorias.max()
+    # Gráfico 1: Distribución de puntos por equipo
+    st.subheader("🎯 Distribución de Puntos por Equipo")
+    puntos_df = partidas_df.melt(id_vars=["ID"], value_vars=["Puntos_Equipo1", "Puntos_Equipo2"], 
+                                 var_name="Equipo", value_name="Puntos")
+    puntos_df["Equipo"] = puntos_df["Equipo"].replace({"Puntos_Equipo1": "Equipo 1", "Puntos_Equipo2": "Equipo 2"})
+    chart_puntos = alt.Chart(puntos_df).mark_bar().encode(
+        x=alt.X("Equipo:N", title="Equipo"),
+        y=alt.Y("sum(Puntos):Q", title="Total de Puntos"),
+        color="Equipo:N",
+        tooltip=["Equipo", "sum(Puntos)"]
+    ).properties(width=600, height=400)
+    st.altair_chart(chart_puntos)
 
-    st.write(f"**Mejor jugador:** {mejor_jugador} con {victorias_mejor_jugador} victorias.")
+    # Gráfico 2: Número de victorias por equipo
+    st.subheader("🏆 Número de Victorias por Equipo")
+    victorias_df = partidas_df["Ganador"].value_counts().reset_index()
+    victorias_df.columns = ["Equipo", "Victorias"]
+    chart_victorias = alt.Chart(victorias_df).mark_bar().encode(
+        x=alt.X("Equipo:N", title="Equipo"),
+        y=alt.Y("Victorias:Q", title="Número de Victorias"),
+        color="Equipo:N",
+        tooltip=["Equipo", "Victorias"]
+    ).properties(width=600, height=400)
+    st.altair_chart(chart_victorias)
 
-    # Estadísticas de equipos
-    st.subheader("🤝 Estadísticas de Equipos")
-    partidas_df["Equipo1"] = partidas_df["Jugador1_Equipo1"] + " y " + partidas_df["Jugador2_Equipo1"]
-    partidas_df["Equipo2"] = partidas_df["Jugador1_Equipo2"] + " y " + partidas_df["Jugador2_Equipo2"]
+    # Gráfico 3: Duración de las partidas a lo largo del tiempo
+    st.subheader("⏱️ Duración de las Partidas a lo Largo del Tiempo")
+    chart_duracion = alt.Chart(partidas_df).mark_line(point=True).encode(
+        x=alt.X("Fecha:T", title="Fecha"),
+        y=alt.Y("Duración:Q", title="Duración (segundos)"),
+        tooltip=["Fecha", "Duración"]
+    ).properties(width=600, height=400)
+    st.altair_chart(chart_duracion)
 
-    equipos_victorias = partidas_df["Ganador"].value_counts()
-    mejor_equipo = equipos_victorias.idxmax()
-    victorias_mejor_equipo = equipos_victorias.max()
-
-    st.write(f"**Mejor combinación de equipo:** {mejor_equipo} con {victorias_mejor_equipo} victorias.")
+    # Gráfico 4: Comparación de puntos anotados por partida
+    st.subheader("⚔️ Comparación de Puntos por Partida")
+    chart_comparacion = alt.Chart(partidas_df).mark_bar().encode(
+        x=alt.X("ID:O", title="ID de Partida"),
+        y=alt.Y("Puntos_Equipo1:Q", title="Puntos Equipo 1", axis=alt.Axis(titleColor="blue")),
+        color=alt.value("blue"),
+        tooltip=["ID", "Puntos_Equipo1"]
+    ).properties(width=600, height=200).interactive() | alt.Chart(partidas_df).mark_bar().encode(
+        x=alt.X("ID:O", title="ID de Partida"),
+        y=alt.Y("Puntos_Equipo2:Q", title="Puntos Equipo 2", axis=alt.Axis(titleColor="red")),
+        color=alt.value("red"),
+        tooltip=["ID", "Puntos_Equipo2"]
+    ).properties(width=600, height=200).interactive()
+    st.altair_chart(chart_comparacion)
 
     # Resumen general
-    st.subheader("📊 Resumen General")
+    st.subheader("📈 Resumen General")
     total_partidas = len(partidas_df)
     total_puntos_equipo1 = partidas_df["Puntos_Equipo1"].sum()
     total_puntos_equipo2 = partidas_df["Puntos_Equipo2"].sum()
+    equipo_mas_victorias = victorias_df.loc[victorias_df["Victorias"].idxmax(), "Equipo"]
 
-    st.write(f"- Total de partidas jugadas: {total_partidas}")
-    st.write(f"- Total de puntos anotados por Equipo 1: {total_puntos_equipo1}")
-    st.write(f"- Total de puntos anotados por Equipo 2: {total_puntos_equipo2}")    
-    
-    
+    st.write(f"- Total de partidas jugadas: **{total_partidas}**")
+    st.write(f"- Total de puntos anotados por Equipo 1: **{total_puntos_equipo1}**")
+    st.write(f"- Total de puntos anotados por Equipo 2: **{total_puntos_equipo2}**")
+    st.write(f"- Equipo con más victorias: **{equipo_mas_victorias}**")
 

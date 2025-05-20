@@ -36,5 +36,5 @@ def main():
 
 
 if __name__ == "__main__":
-    create_tables()
+    #create_tables()
     main()
