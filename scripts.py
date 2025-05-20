@@ -4,7 +4,7 @@ import pandas as pd
 import altair as alt
 from db_utils import create_tables, add_player, add_team, add_match, add_team_player
 from db_utils import get_players, get_teams, get_matches, get_team_player
-
+from db_utils import get_matches_with_players, get_pareja_mas_ganadora,get_jugador_mas_ganador
 # Conexiones
 #jugadores = get_players()
 #equipos = get_teams()
@@ -171,6 +171,27 @@ def estadisticas_v():
 
 def estadisticas():
     st.header("📊 Estadísticas de Partidas de Petanca")
+
+        # Mostrar tabla de partidas con jugadores por equipo y ganador
+    st.subheader("📋 Partidas con Jugadores por Equipo y Ganador")
+    df_partidas = get_matches_with_players()
+    st.dataframe(df_partidas)
+
+    # Mostrar la pareja más ganadora
+    st.subheader("🥇 Pareja más ganadora")
+    pareja = get_pareja_mas_ganadora()
+    if not pareja.empty:
+        st.write(f"La pareja más ganadora es: **{pareja.iloc[0]['jugador1']}** y **{pareja.iloc[0]['jugador2']}** con **{pareja.iloc[0]['victorias']}** victorias.")
+    else:
+        st.write("No hay suficientes datos para mostrar la pareja más ganadora.")
+
+    # Mostrar el jugador más ganador
+    st.subheader("🏅 Jugador más ganador")
+    jugador = get_jugador_mas_ganador()
+    if not jugador.empty:
+        st.write(f"El jugador con más victorias es: **{jugador.iloc[0]['jugador']}** con **{jugador.iloc[0]['victorias']}** victorias.")
+    else:
+        st.write("No hay suficientes datos para mostrar el jugador más ganador.")
 
     # Obtener las partidas desde la base de datos
     partidas = get_matches()

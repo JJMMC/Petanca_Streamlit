@@ -192,6 +192,82 @@ def get_team_player():
     return teams
 
 
+def get_matches_with_players():
+    """
+    Devuelve un DataFrame con cada partida, los jugadores de cada equipo y el equipo ganador.
+    """
+    conn = get_connection()
+    query = """
+    SELECT 
+        m.id as match_id,
+        m.fecha,
+        m.ganador,
+        t.equipo_numero,
+        GROUP_CONCAT(p.name || ' ' || p.surname, ', ') as jugadores
+    FROM matches m
+    JOIN teams t ON t.partida_id = m.id
+    JOIN teams_players tp ON tp.equipo_id = t.id
+    JOIN players p ON p.id = tp.jugador_id
+    GROUP BY m.id, t.equipo_numero
+    ORDER BY m.id, t.equipo_numero
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def get_pareja_mas_ganadora():
+    """
+    Devuelve la pareja de jugadores que más veces ha ganado.
+    """
+    conn = get_connection()
+    query = """
+    SELECT 
+        MIN(p1.name || ' ' || p1.surname, p2.name || ' ' || p2.surname) as jugador1,
+        MAX(p1.name || ' ' || p1.surname, p2.name || ' ' || p2.surname) as jugador2,
+        COUNT(*) as victorias
+    FROM (
+        SELECT 
+            t.id as equipo_id,
+            t.partida_id
+        FROM teams t
+        JOIN matches m ON m.id = t.partida_id
+        WHERE (m.ganador = 'Equipo 1' AND t.equipo_numero = 1)
+           OR (m.ganador = 'Equipo 2' AND t.equipo_numero = 2)
+    ) equipos_ganadores
+    JOIN teams_players tp1 ON tp1.equipo_id = equipos_ganadores.equipo_id
+    JOIN teams_players tp2 ON tp2.equipo_id = equipos_ganadores.equipo_id AND tp1.jugador_id < tp2.jugador_id
+    JOIN players p1 ON p1.id = tp1.jugador_id
+    JOIN players p2 ON p2.id = tp2.jugador_id
+    GROUP BY jugador1, jugador2
+    ORDER BY victorias DESC
+    LIMIT 1
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def get_jugador_mas_ganador():
+    """
+    Devuelve el jugador que más partidas ha ganado.
+    """
+    conn = get_connection()
+    query = """
+    SELECT 
+        p.name || ' ' || p.surname as jugador,
+        COUNT(*) as victorias
+    FROM matches m
+    JOIN teams t ON t.partida_id = m.id
+    JOIN teams_players tp ON tp.equipo_id = t.id
+    JOIN players p ON p.id = tp.jugador_id
+    WHERE (m.ganador = 'Equipo 1' AND t.equipo_numero = 1)
+       OR (m.ganador = 'Equipo 2' AND t.equipo_numero = 2)
+    GROUP BY jugador
+    ORDER BY victorias DESC
+    LIMIT 1
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
 
 # Functions to errase data in database 
 def clear_tables_except_players():
@@ -256,3 +332,4 @@ if __name__ == "__main__":
     #clear_all_tables()
     #export_db_to_excel()
     pass
+
