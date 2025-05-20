@@ -1,4 +1,5 @@
 import sqlite3
+import pandas as pd
 
 DB_PATH = 'database.db'
 
@@ -9,7 +10,7 @@ def create_tables():
     conn = get_connection()
     c = conn.cursor()
     c.execute('''
-        CREATE TABLE IF NOT EXISTS jugadores (
+        CREATE TABLE IF NOT EXISTS players (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             surname TEXT NOT NULL,
@@ -19,7 +20,7 @@ def create_tables():
         ''')
     
     c.execute('''
-        CREATE TABLE IF NOT EXISTS partidas (
+        CREATE TABLE IF NOT EXISTS matches (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fecha DATE,
             duracion INTEGER, -- Duración en segundos
@@ -30,21 +31,21 @@ def create_tables():
     ''')
 
     c.execute('''
-        CREATE TABLE IF NOT EXISTS equipos (
+        CREATE TABLE IF NOT EXISTS teams (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             partida_id INTEGER NOT NULL,
             equipo_numero INTEGER NOT NULL, -- 1 para Equipo 1, 2 para Equipo 2
-            FOREIGN KEY(partida_id) REFERENCES partidas(id)
+            FOREIGN KEY(partida_id) REFERENCES matches(id)
         )
     ''')
 
     c.execute('''
-        CREATE TABLE IF NOT EXISTS equipos_jugadores (
+        CREATE TABLE IF NOT EXISTS teams_players (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             equipo_id INTEGER NOT NULL,
             jugador_id INTEGER NOT NULL,
-            FOREIGN KEY(equipo_id) REFERENCES equipos(id),
-            FOREIGN KEY(jugador_id) REFERENCES jugadores(id)
+            FOREIGN KEY(equipo_id) REFERENCES teams(id),
+            FOREIGN KEY(jugador_id) REFERENCES players(id)
         )
     ''')
 
@@ -55,13 +56,13 @@ def create_tables():
 def add_player(name, surname, photo_path, creation_date ):
     conn = get_connection()
     c = conn.cursor()
-    c.execute('INSERT INTO jugadores (name, surname, photo_path, creation_date) VALUES (?, ?, ?, ?)', (name, surname, photo_path, creation_date))
+    c.execute('INSERT INTO players (name, surname, photo_path, creation_date) VALUES (?, ?, ?, ?)', (name, surname, photo_path, creation_date))
     conn.commit()
     conn.close()
 
 def update_player(player_id, name=None, surname=None, photo_path=None):
     """
-    Actualiza los datos de un jugador en la tabla 'jugadores'.
+    Actualiza los datos de un jugador en la tabla 'players'.
 
     Args:
         player_id (int): ID del jugador a actualizar.
@@ -85,29 +86,29 @@ def update_player(player_id, name=None, surname=None, photo_path=None):
         params.append(photo_path)
 
     params.append(player_id)
-    query = f"UPDATE jugadores SET {', '.join(updates)} WHERE id = ?"
+    query = f"UPDATE players SET {', '.join(updates)} WHERE id = ?"
     c.execute(query, params)
     conn.commit()
     conn.close()
 
 def delete_player(player_id):
     """
-    Elimina un jugador de la tabla 'jugadores'.
+    Elimina un jugador de la tabla 'players'.
 
     Args:
         player_id (int): ID del jugador a eliminar.
     """
     conn = get_connection()
     c = conn.cursor()
-    c.execute('DELETE FROM jugadores WHERE id = ?', (player_id,))
+    c.execute('DELETE FROM players WHERE id = ?', (player_id,))
     conn.commit()
     conn.close()
 
-def get_jugadores():
+def get_players():
     with get_connection() as conn:
         c = conn.cursor()
-        jugadores = c.execute('SELECT id, name FROM jugadores').fetchall()
-    return jugadores
+        players = c.execute('SELECT id, name FROM players').fetchall()
+    return players
 
 def get_player_by_id(player_id):
     """
@@ -121,55 +122,55 @@ def get_player_by_id(player_id):
     """
     conn = get_connection()
     c = conn.cursor()
-    jugador = c.execute('SELECT * FROM jugadores WHERE id = ?', (player_id,)).fetchone()
+    jugador = c.execute('SELECT * FROM players WHERE id = ?', (player_id,)).fetchone()
     conn.close()
     return jugador
 
-def add_partida(fecha, puntos_equipo1, puntos_equipo2, ganador):
+def add_match(fecha, puntos_equipo1, puntos_equipo2, ganador):
     conn = get_connection()
     c = conn.cursor()
-    c.execute('INSERT INTO partidas (fecha, puntos_equipo1, puntos_equipo2, ganador) VALUES (?, ?, ?, ?)',
+    c.execute('INSERT INTO matches (fecha, puntos_equipo1, puntos_equipo2, ganador) VALUES (?, ?, ?, ?)',
               (fecha, puntos_equipo1, puntos_equipo2, ganador))
     conn.commit()
     conn.close()
 
-def get_partidas():
+def get_matches():
     conn = get_connection()
     c = conn.cursor()
-    partidas = c.execute('SELECT * FROM partidas').fetchall()
+    matches = c.execute('SELECT * FROM matches').fetchall()
     conn.close()
-    return partidas
+    return matches
 
-def delete_partida(partida_id):
+def delete_match(partida_id):
     """
-    Elimina una partida de la tabla 'partidas'.
+    Elimina una partida de la tabla 'matches'.
 
     Args:
         partida_id (int): ID de la partida a eliminar.
     """
     conn = get_connection()
     c = conn.cursor()
-    c.execute('DELETE FROM partidas WHERE id = ?', (partida_id,))
+    c.execute('DELETE FROM matches WHERE id = ?', (partida_id,))
     conn.commit()
     conn.close()
 
-def add_equipo(partida_id, equipo_numero):
+def add_team(partida_id, equipo_numero):
     conn = get_connection()
     c = conn.cursor()
-    c.execute('INSERT INTO equipos (partida_id, equipo_numero) VALUES (?, ?)', (partida_id, equipo_numero))
+    c.execute('INSERT INTO teams (partida_id, equipo_numero) VALUES (?, ?)', (partida_id, equipo_numero))
     conn.commit()
     conn.close()
     
-def get_equipos():
+def get_teams():
     conn = get_connection()
     c = conn.cursor()
-    equipos = c.execute('SELECT * FROM equipos').fetchall()
+    teams = c.execute('SELECT * FROM teams').fetchall()
     conn.close()
-    return equipos
+    return teams
 
-def add_equipo_jugador(equipo_id, jugador_id,):
+def add_team_player(equipo_id, jugador_id,):
     """
-    Inserta un jugador en un equipo en la tabla 'equipos_jugadores'.
+    Inserta un jugador en un equipo en la tabla 'teams_players'.
 
     Args:
         equipo_id (int): ID del equipo.
@@ -178,24 +179,24 @@ def add_equipo_jugador(equipo_id, jugador_id,):
     """
     conn = get_connection()
     c = conn.cursor()
-    c.execute('INSERT INTO equipos_jugadores (equipo_id, jugador_id) VALUES (?, ?)',
+    c.execute('INSERT INTO teams_players (equipo_id, jugador_id) VALUES (?, ?)',
               (equipo_id, jugador_id))
     conn.commit()
     conn.close()
 
-def get_equipo_jugador():
+def get_team_player():
     conn = get_connection()
     c = conn.cursor()
-    equipos = c.execute('SELECT equipo_id, jugador_id FROM equipos_jugadores').fetchall()
+    teams = c.execute('SELECT equipo_id, jugador_id FROM teams_players').fetchall()
     conn.close()
-    return equipos
+    return teams
 
 
 
 # Functions to errase data in database 
-def clear_tables_except_jugadores():
+def clear_tables_except_players():
     """
-    Borra el contenido de todas las tablas excepto la tabla 'jugadores'.
+    Borra el contenido de todas las tablas excepto la tabla 'players'.
     """
     conn = get_connection()
     c = conn.cursor()
@@ -204,9 +205,9 @@ def clear_tables_except_jugadores():
     c.execute('PRAGMA foreign_keys = OFF;')
     
     # Borrar el contenido de las tablas en el orden correcto para evitar conflictos
-    c.execute('DELETE FROM equipos_jugadores;')
-    c.execute('DELETE FROM equipos;')
-    c.execute('DELETE FROM partidas;')
+    c.execute('DELETE FROM teams_players;')
+    c.execute('DELETE FROM teams;')
+    c.execute('DELETE FROM matches;')
     
     # Habilitar las restricciones de claves foráneas nuevamente
     c.execute('PRAGMA foreign_keys = ON;')
@@ -225,10 +226,10 @@ def clear_all_tables():
     c.execute('PRAGMA foreign_keys = OFF;')
     
     # Borrar el contenido de todas las tablas
-    c.execute('DELETE FROM equipos_jugadores;')
-    c.execute('DELETE FROM equipos;')
-    c.execute('DELETE FROM partidas;')
-    c.execute('DELETE FROM jugadores;')
+    c.execute('DELETE FROM teams_players;')
+    c.execute('DELETE FROM teams;')
+    c.execute('DELETE FROM matches;')
+    c.execute('DELETE FROM players;')
     
     # Habilitar las restricciones de claves foráneas nuevamente
     c.execute('PRAGMA foreign_keys = ON;')
@@ -236,8 +237,22 @@ def clear_all_tables():
     conn.commit()
     conn.close()
 
-
+def export_db_to_excel(excel_path='export_petanca.xlsx'):
+    """
+    Exporta todas las tablas de la base de datos a un archivo Excel.
+    Cada tabla será una hoja diferente.
+    """
+    conn = get_connection()
+    tablas = ['players', 'matches', 'teams', 'teams_players']
+    with pd.ExcelWriter(excel_path) as writer:
+        for tabla in tablas:
+            df = pd.read_sql_query(f"SELECT * FROM {tabla}", conn)
+            df.to_excel(writer, sheet_name=tabla, index=False)
+    conn.close()
+    print(f"Datos exportados a {excel_path}")
 
 if __name__ == "__main__":
-    create_tables()
+    #create_tables()
     #clear_all_tables()
+    #export_db_to_excel()
+    pass

@@ -2,12 +2,12 @@ import streamlit as st
 import datetime
 import pandas as pd
 import altair as alt
-from db_utils import create_tables, add_player, add_equipo, add_partida, add_equipo_jugador
-from db_utils import get_jugadores, get_equipos, get_partidas, get_equipo_jugador
+from db_utils import create_tables, add_player, add_team, add_match, add_team_player
+from db_utils import get_players, get_teams, get_matches, get_team_player
 
 # Conexiones
-#jugadores = get_jugadores()
-#equipos = get_equipos()
+#jugadores = get_players()
+#equipos = get_teams()
 photo_path = 'resources/users_photo'
 
 def incio():
@@ -30,7 +30,7 @@ def pag_add_players():
         st.rerun()
 
 def save_match():
-    jugadores = get_jugadores()
+    jugadores = get_players()
     st.header("⚔️ Registrar nueva partida")
 
     if len(jugadores) < 4:
@@ -70,45 +70,45 @@ def save_match():
                 ganador = 'Equipo 2'
             
             # Creamos la partida
-            add_partida(fecha, puntos1, puntos2, ganador)
-            partida_id = get_partidas()
+            add_match(fecha, puntos1, puntos2, ganador)
+            partida_id = get_matches()
             partida_id = partida_id[-1]
             
             #Creamos el equipo
-            add_equipo(partida_id[0], 1)
-            add_equipo(partida_id[0], 2)
-            equipo_id = [equipo_id for equipo_id, _ , _ in get_equipos()]
+            add_team(partida_id[0], 1)
+            add_team(partida_id[0], 2)
+            equipo_id = [equipo_id for equipo_id, _ , _ in get_teams()]
 
             # Generamos las entradas en la tabla relacional equipos-jugadores
             # Añadimos el Jugador 1 a la tabla equipo jugador
             if jugador1 in jugadores_dict:
                 jugador_id = jugadores_dict[jugador1]
-                add_equipo_jugador(equipo_id[-2], jugador_id)
+                add_team_player(equipo_id[-2], jugador_id)
             
             # Añadimos el Jugador 2 a la tabla equipo jugador
             if jugador2 in jugadores_dict:
                 jugador_id = jugadores_dict[jugador2]
-                add_equipo_jugador(equipo_id[-2], jugador_id)
+                add_team_player(equipo_id[-2], jugador_id)
             
             # Añadimos el Jugador 3 a la tabla equipo jugador
             if jugador3 in jugadores_dict:
                 jugador_id = jugadores_dict[jugador3]
-                add_equipo_jugador(equipo_id[-1], jugador_id)
+                add_team_player(equipo_id[-1], jugador_id)
             
             # Añadimos el Jugador 4 a la tabla equipo jugador
             if jugador4 in jugadores_dict:
                 jugador_id = jugadores_dict[jugador4]
-                add_equipo_jugador(equipo_id[-1], jugador_id)
+                add_team_player(equipo_id[-1], jugador_id)
 
             
-            # add_equipo(partida_id, equipo_id)
+            # add_team(partida_id, equipo_id)
             st.success("Partida registrada exitosamente.")
 
 def estadisticas_v():
     st.header("📊 Estadísticas de Partidas de Petanca")
 
     # Obtener las partidas desde la base de datos
-    partidas = get_partidas()
+    partidas = get_matches()
     if not partidas:
         st.info("No hay partidas registradas.")
         return
@@ -118,9 +118,9 @@ def estadisticas_v():
     partidas_df["Fecha"] = pd.to_datetime(partidas_df["Fecha"])
 
     # Obtener datos adicionales de otras tablas
-    jugadores = get_jugadores()
-    equipos = get_equipos()
-    equipos_jugadores = pd.DataFrame(get_equipo_jugador(), columns=["Equipo_ID", "Jugador_ID"])
+    jugadores = get_players()
+    equipos = get_teams()
+    equipos_jugadores = pd.DataFrame(get_team_player(), columns=["Equipo_ID", "Jugador_ID"])
 
     jugadores_df = pd.DataFrame(jugadores, columns=["ID", "Nombre"])
     equipos_df = pd.DataFrame(equipos, columns=["ID", "Partida_ID", "Equipo_Numero"])
@@ -173,7 +173,7 @@ def estadisticas():
     st.header("📊 Estadísticas de Partidas de Petanca")
 
     # Obtener las partidas desde la base de datos
-    partidas = get_partidas()
+    partidas = get_matches()
     if not partidas:
         st.info("No hay partidas registradas.")
         return
