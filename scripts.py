@@ -5,15 +5,45 @@ import altair as alt
 from db_utils import create_tables, add_player, add_team, add_match, add_team_player
 from db_utils import get_players, get_teams, get_matches, get_team_player
 from db_utils import get_matches_with_players, get_pareja_mas_ganadora,get_jugador_mas_ganador
+
 # Conexiones
 #jugadores = get_players()
 #equipos = get_teams()
 photo_path = 'resources/users_photo'
 
 def incio():
-    st.header("¿Parqué es esta aplicación?")
-    st.write('Descripcion de la aplicación')
-
+    st.header("🎯 ¿Qué es esta aplicación?")
+    
+    st.write("""
+    Esta aplicación está diseñada para gestionar y registrar partidas de **Petanca**, 
+    permitiendo llevar un control detallado de jugadores, equipos y estadísticas de las partidas.
+    """)
+    
+    st.subheader("🔧 Funcionalidades principales:")
+    st.write("""
+    - **👤 Gestión de jugadores**: Agregar nuevos jugadores al sistema
+    - **⚔️ Registro de partidas**: Crear equipos y registrar resultados de las partidas
+    - **📊 Estadísticas**: Visualizar datos sobre rendimiento de jugadores y equipos
+    - **🏆 Rankings**: Ver las parejas y jugadores más ganadores
+    """)
+    
+    st.subheader("🎯 ¿Qué es la Petanca?")
+    st.write("""
+    La **Petanca** es un juego tradicional que se juega con bolas metálicas. El objetivo es 
+    acercar las bolas lo máximo posible a una pequeña bola objetivo llamada "boliche" o "cochonnet".
+    """)
+    
+    st.subheader("📋 Reglas básicas:")
+    st.write("""
+    - **Equipos**: Se juega en equipos de 2 jugadores cada uno
+    - **Puntuación**: Las partidas se juegan a 13 puntos
+    - **Objetivo**: Acercar las bolas al boliche más que el equipo contrario
+    - **Turnos**: Los equipos alternan lanzamientos hasta que todas las bolas están jugadas
+    - **Puntos**: En cada mano, solo un equipo puede sumar puntos (según cuántas bolas tenga más cerca del boliche)
+    """)
+    
+    st.info("💡 ¡Comienza agregando jugadores y registra tu primera partida!")
+   
 def pag_add_players():
     st.header("👤 Agregar nuevo jugador")
     with st.form(key='form_reinicio', clear_on_submit=True):
